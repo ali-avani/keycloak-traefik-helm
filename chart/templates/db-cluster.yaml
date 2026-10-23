@@ -1,0 +1,43 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-db
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  imageName: {{ .Values.db.image }}
+  instances: {{ .Values.db.instances }}
+  primaryUpdateMethod: switchover
+  {{- with .Values.db.priorityClassName }}
+  priorityClassName: {{ . }}
+  {{- end }}
+  postgresql:
+    parameters:
+      shared_buffers: {{ .Values.db.sharedBuffers | quote }}
+  storage:
+    size: {{ .Values.db.storageSize }}
+    {{- with .Values.db.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  {{- if or .Values.nodeSelector .Values.tolerations }}
+  affinity:
+    {{- with .Values.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+      secret:
+        name: {{ .Release.Name }}-db-auth
+  resources:
+    {{- toYaml .Values.db.resources | nindent 4 }}

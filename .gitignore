@@ -1,0 +1,6 @@
+**.tgz
+
+# Helm dependencies lock file
+Chart.lock
+
+/values.yaml

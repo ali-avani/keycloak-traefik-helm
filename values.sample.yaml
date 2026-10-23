@@ -1,0 +1,5 @@
+host: auth.example.com
+image:
+  tag: "26.8.1"
+db:
+  image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie

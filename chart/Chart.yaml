@@ -1,0 +1,5 @@
+apiVersion: v2
+name: keycloak-traefik-helm
+description: Keycloak with a CloudNativePG database and Traefik ingress
+type: application
+version: 0.1.0

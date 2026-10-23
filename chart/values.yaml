@@ -1,0 +1,39 @@
+host: ""
+exposeAdmin: false
+certResolver: le
+
+image:
+  repository: keycloak/keycloak
+  tag: "26.8.1"
+  pullPolicy: IfNotPresent
+
+args:
+  - start
+replicas: 1
+extraEnv: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 1536Mi
+
+db:
+  image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+  instances: 1
+  storageSize: 2Gi
+  storageClass: ""
+  sharedBuffers: 64MB
+  priorityClassName: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
