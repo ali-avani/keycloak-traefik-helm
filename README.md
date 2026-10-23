@@ -38,7 +38,7 @@ own.
 | Key | Default | Description |
 |---|---|---|
 | `host` | required | Public hostname of Keycloak |
-| `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/`, `/resources/` and `/robots.txt` are public, the `master` realm is blocked, and the admin console is reached through a port-forward |
+| `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward |
 | `certResolver` | `le` | Traefik certificate resolver |
 | `image.repository` | `keycloak/keycloak` | Keycloak image, or your own image built on it |
 | `image.tag` | `26.8.1` | Keycloak version |

@@ -12,7 +12,7 @@ spec:
       {{- if .Values.exposeAdmin }}
       match: Host(`{{ $host }}`)
       {{- else }}
-      match: Host(`{{ $host }}`) && (PathPrefix(`/realms/`) || PathPrefix(`/resources/`) || Path(`/robots.txt`)) && !PathPrefix(`/realms/master/`)
+      match: Host(`{{ $host }}`) && (PathPrefix(`/realms/`) || PathPrefix(`/resources/`)) && !PathPrefix(`/realms/master/`)
       {{- end }}
       services:
         - name: {{ .Release.Name }}
