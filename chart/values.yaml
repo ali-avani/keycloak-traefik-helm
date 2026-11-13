@@ -1,5 +1,6 @@
 host: ""
 exposeAdmin: false
+adminHostname: http://localhost:8080
 exposeAdminApi: false
 certResolver: le
 

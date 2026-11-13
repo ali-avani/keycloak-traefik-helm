@@ -38,7 +38,8 @@ own.
 | Key | Default | Description |
 |---|---|---|
 | `host` | required | Public hostname of Keycloak |
-| `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward |
+| `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward (see [step 4](#4-open-the-admin-console)) |
+| `adminHostname` | `http://localhost:8080` | With `exposeAdmin: false`: the URL of the admin console through the port-forward. Keep port `8080`. Give each server its own `*.localhost` name (e.g. `http://keycloak-prod.localhost:8080`), so the browser saves a separate password per server |
 | `exposeAdminApi` | `false` | With `exposeAdmin: false`: `true` also makes the admin REST API of every realm except `master` public (`/admin/realms/<realm>/`), for a backend that manages users with a service-account token. The admin console stays closed |
 | `certResolver` | `le` | Traefik certificate resolver |
 | `image.repository` | `keycloak/keycloak` | Keycloak image, or your own image built on it |
@@ -103,23 +104,49 @@ follow the release name (`<release>`, `<release>-db`, `<release>-db-auth`, ...).
 
 With `exposeAdmin: true`, open `https://<host>/admin/`.
 
-With `exposeAdmin: false`:
+With `exposeAdmin: false`, the console runs at `adminHostname` through a
+port-forward. Browsers send every `*.localhost` name to `127.0.0.1`, so no
+`/etc/hosts` entry is needed.
 
-```bash
-kubectl -n keycloak port-forward svc/keycloak 8080:8080
-```
+1. Once after install, set the `master` realm's Frontend URL to
+   `adminHostname`. Without it, the console's login and its third-party
+   cookie check go to `https://<host>/realms/master/`, which is blocked, and
+   the console shows "Timeout when waiting for 3rd party check iframe
+   message".
 
-and open http://localhost:8080/admin/ (the local port must be 8080).
+   ```bash
+   ADMIN_HOSTNAME=http://localhost:8080
+   kubectl -n keycloak exec deploy/keycloak -- /opt/keycloak/bin/kcadm.sh config credentials \
+     --config /tmp/kcadm.config --server http://localhost:8080 --realm master --user temp-admin \
+     --password "$(kubectl -n keycloak get secret keycloak-bootstrap-admin -o jsonpath='{.data.password}' | base64 -d)"
+   kubectl -n keycloak exec deploy/keycloak -- /opt/keycloak/bin/kcadm.sh update realms/master \
+     --config /tmp/kcadm.config -s "attributes.frontendUrl=${ADMIN_HOSTNAME}"
+   kubectl -n keycloak exec deploy/keycloak -- rm -f /tmp/kcadm.config
+   ```
 
-From your own machine, without a kubeconfig, forward through SSH to the
-server that runs `kubectl`:
+   Set `ADMIN_HOSTNAME` to your `adminHostname`. After `temp-admin` is
+   replaced (step 5), log in with your own admin user instead. The change
+   makes all earlier `master` tokens invalid, so log in again afterwards. To
+   undo it, run the same commands with `attributes.frontendUrl=`. kcadm runs
+   inside the pod, so a wrong value cannot lock you out.
 
-```bash
-ssh -L 8080:localhost:18080 <server> 'kubectl -n keycloak port-forward svc/keycloak 18080:8080'
-```
+2. Forward the port:
+
+   ```bash
+   kubectl -n keycloak port-forward svc/keycloak 8080:8080
+   ```
+
+   From your own machine, without a kubeconfig, forward through SSH to the
+   server that runs `kubectl`:
+
+   ```bash
+   ssh -L 8080:localhost:18080 <server> 'kubectl -n keycloak port-forward svc/keycloak 18080:8080'
+   ```
+
+3. Open `<adminHostname>/admin/`.
 
 Tools that need the `master` realm, such as the Terraform Keycloak provider,
-use `http://localhost:8080` through the same port-forward.
+can use `http://localhost:8080` through the same port-forward.
 
 ---
 

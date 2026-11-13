@@ -39,7 +39,7 @@ spec:
               value: https://{{ $host }}
             {{- if not .Values.exposeAdmin }}
             - name: KC_HOSTNAME_ADMIN
-              value: http://localhost:8080
+              value: {{ .Values.adminHostname | required ".Values.adminHostname is required when exposeAdmin is false" | quote }}
             {{- end }}
             - name: KC_HTTP_ENABLED
               value: "true"
