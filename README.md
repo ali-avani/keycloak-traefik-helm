@@ -1,18 +1,21 @@
 # Keycloak with CloudNativePG and Traefik – Install via Helm
 
 This repository installs **Keycloak** with its own PostgreSQL database
-(**CloudNativePG**) and a **Traefik** `IngressRoute` with an automatic TLS
-certificate.
+(**CloudNativePG**). With `host` set, a **Traefik** `IngressRoute` with an
+automatic TLS certificate publishes it. Without `host`, Keycloak stays private:
+only pods in the cluster and a port-forward reach it (see
+[Private Keycloak](#private-keycloak)).
 
 ---
 
 ## Prerequisites
 
-* A Kubernetes cluster (e.g. k3s) with **Traefik v3** and an ACME certificate
-  resolver (`IngressRoute`, `traefik.io/v1alpha1`)
+* A Kubernetes cluster (e.g. k3s)
+* With `host`: **Traefik v3** with an ACME certificate resolver
+  (`IngressRoute`, `traefik.io/v1alpha1`), and a DNS record for `host`
+  pointing at the node that runs Traefik
 * The **CloudNativePG operator** (`Cluster`, `postgresql.cnpg.io/v1`)
 * Helm v3.9+ and `kubectl` pointed at the cluster
-* A DNS record for your `host` pointing at the node that runs Traefik
 * The cluster can pull `keycloak/keycloak` (Docker Hub) and
   `ghcr.io/cloudnative-pg/postgresql`
 
@@ -29,19 +32,19 @@ If Traefik or CloudNativePG is missing, `helm install` stops with
 cp values.sample.yaml values.yaml && vim values.yaml
 ```
 
-Only `host` is required. Every other key has a default in `chart/values.yaml`
-(see the table), so add a key only when this environment needs a different
-value. Pin `image.tag` and `db.image` anyway: both upgrades change the database
+No key is required. Every key has a default in `chart/values.yaml` (see the
+table), so add a key only when this environment needs a different value. Set
+`host` to publish Keycloak; leave it out to keep Keycloak private. Pin `image.tag` and `db.image` anyway: both upgrades change the database
 and cannot be undone, so a newer chart must never upgrade an environment on its
 own.
 
 | Key | Default | Description |
 |---|---|---|
-| `host` | required | Public hostname of Keycloak |
-| `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward (see [step 4](#4-open-the-admin-console)) |
-| `adminHostname` | `http://localhost:8080` | With `exposeAdmin: false`: the URL of the admin console through the port-forward. Keep port `8080`. Give each server its own `*.localhost` name (e.g. `http://keycloak-prod.localhost:8080`), so the browser saves a separate password per server |
-| `exposeAdminApi` | `false` | With `exposeAdmin: false`: `true` also makes the admin REST API of every realm except `master` public (`/admin/realms/<realm>/`), for a backend that manages users with a service-account token. The admin console stays closed |
-| `certResolver` | `le` | Traefik certificate resolver |
+| `host` | `""` | Public hostname of Keycloak. Empty: no `IngressRoute`, and Keycloak builds its URLs from each request (see [Private Keycloak](#private-keycloak)) |
+| `exposeAdmin` | `false` | With `host`. `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward (see [step 4](#4-open-the-admin-console)) |
+| `adminHostname` | `http://localhost:8080` | With `host` and `exposeAdmin: false`: the URL of the admin console through the port-forward. Keep port `8080`. Give each server its own `*.localhost` name (e.g. `http://keycloak-prod.localhost:8080`), so the browser saves a separate password per server |
+| `exposeAdminApi` | `false` | With `host` and `exposeAdmin: false`: `true` also makes the admin REST API of every realm except `master` public (`/admin/realms/<realm>/`), for a backend that manages users with a service-account token. The admin console stays closed |
+| `certResolver` | `le` | With `host`: Traefik certificate resolver |
 | `image.repository` | `keycloak/keycloak` | Keycloak image, or your own image built on it |
 | `image.tag` | `26.8.1` | Keycloak version |
 | `args` | `[start]` | Use `[start, --optimized]` with a pre-built image |
@@ -108,6 +111,12 @@ follow the release name (`<release>`, `<release>-db`, `<release>-db-auth`, ...).
 
 With `exposeAdmin: true`, open `https://<host>/admin/`.
 
+Without `host`, forward the port (step 2 below) and open
+`http://<name>.localhost:8080/admin/`, for example
+`http://keycloak-prod.localhost:8080/admin/`. Any name works; one name per
+server lets the browser save a separate password per server. Skip step 1. If
+the `master` realm already has a Frontend URL, open the console at that URL.
+
 With `exposeAdmin: false`, the console runs at `adminHostname` through a
 port-forward. Browsers send every `*.localhost` name to `127.0.0.1`, so no
 `/etc/hosts` entry is needed.
@@ -162,6 +171,22 @@ port-forward. Browsers send every `*.localhost` name to `127.0.0.1`, so no
 
 Tools that need the `master` realm, such as the Terraform Keycloak provider,
 can use `http://localhost:8080` through the same port-forward.
+
+---
+
+## Private Keycloak
+
+Without `host`, the chart creates no `IngressRoute` and sets
+`KC_HOSTNAME_STRICT=false` instead of `KC_HOSTNAME`. Keycloak then builds every
+URL, the token issuer (`iss`) included, from the host of each request.
+`KC_PROXY_HEADERS` is not set, so Keycloak ignores `X-Forwarded-*` headers.
+
+* All clients of a realm must use the same URL, for example the in-cluster
+  Service `http://keycloak.keycloak.svc.cluster.local:8080`. A token issued
+  through one URL fails the issuer check of a client that uses another URL.
+* Adding or removing `host` changes the issuer, so every existing token and
+  session becomes invalid.
+* A Frontend URL set on a realm overrides the request host for that realm.
 
 ---
 

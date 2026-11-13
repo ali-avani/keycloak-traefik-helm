@@ -1,4 +1,3 @@
-{{- $host := .Values.host | required ".Values.host is required" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,16 +34,23 @@ spec:
           args:
             {{- toYaml .Values.args | nindent 12 }}
           env:
+            {{- if .Values.host }}
             - name: KC_HOSTNAME
-              value: https://{{ $host }}
+              value: https://{{ .Values.host }}
             {{- if not .Values.exposeAdmin }}
             - name: KC_HOSTNAME_ADMIN
               value: {{ .Values.adminHostname | required ".Values.adminHostname is required when exposeAdmin is false" | quote }}
             {{- end }}
+            {{- else }}
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            {{- end }}
             - name: KC_HTTP_ENABLED
               value: "true"
+            {{- if .Values.host }}
             - name: KC_PROXY_HEADERS
               value: xforwarded
+            {{- end }}
             - name: KC_HEALTH_ENABLED
               value: "true"
             - name: KC_DB
