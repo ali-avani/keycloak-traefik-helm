@@ -1,5 +1,6 @@
 host: ""
 exposeAdmin: false
+exposeAdminApi: false
 certResolver: le
 
 image:

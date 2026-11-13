@@ -39,6 +39,7 @@ own.
 |---|---|---|
 | `host` | required | Public hostname of Keycloak |
 | `exposeAdmin` | `false` | `true`: the whole host is public, admin console included. `false`: only `/realms/` and `/resources/` are public, the `master` realm is blocked, and the admin console is reached through a port-forward |
+| `exposeAdminApi` | `false` | With `exposeAdmin: false`: `true` also makes the admin REST API of every realm except `master` public (`/admin/realms/<realm>/`), for a backend that manages users with a service-account token. The admin console stays closed |
 | `certResolver` | `le` | Traefik certificate resolver |
 | `image.repository` | `keycloak/keycloak` | Keycloak image, or your own image built on it |
 | `image.tag` | `26.8.1` | Keycloak version |
@@ -109,6 +110,16 @@ kubectl -n keycloak port-forward svc/keycloak 8080:8080
 ```
 
 and open http://localhost:8080/admin/ (the local port must be 8080).
+
+From your own machine, without a kubeconfig, forward through SSH to the
+server that runs `kubectl`:
+
+```bash
+ssh -L 8080:localhost:18080 <server> 'kubectl -n keycloak port-forward svc/keycloak 18080:8080'
+```
+
+Tools that need the `master` realm, such as the Terraform Keycloak provider,
+use `http://localhost:8080` through the same port-forward.
 
 ---
 

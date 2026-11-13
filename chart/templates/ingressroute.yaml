@@ -11,6 +11,8 @@ spec:
     - kind: Rule
       {{- if .Values.exposeAdmin }}
       match: Host(`{{ $host }}`)
+      {{- else if .Values.exposeAdminApi }}
+      match: Host(`{{ $host }}`) && (PathPrefix(`/realms/`) || PathPrefix(`/resources/`) || PathPrefix(`/admin/realms/`)) && !PathPrefix(`/realms/master/`) && !PathPrefix(`/admin/realms/master`)
       {{- else }}
       match: Host(`{{ $host }}`) && (PathPrefix(`/realms/`) || PathPrefix(`/resources/`)) && !PathPrefix(`/realms/master/`)
       {{- end }}
