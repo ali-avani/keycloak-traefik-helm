@@ -92,6 +92,10 @@ helm upgrade --install keycloak chart --create-namespace -n keycloak --values va
 kubectl -n keycloak rollout status deploy/keycloak --timeout=10m
 ```
 
+On a k3s server, run `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml` first.
+k3s's `kubectl` finds that file by itself, but `helm` does not: it falls back
+to `http://localhost:8080` and fails with `Kubernetes cluster unreachable`.
+
 The first start takes about 2 minutes: Keycloak builds itself, then creates
 its schema. `Startup probe failed` events during that time are expected.
 
@@ -124,11 +128,22 @@ port-forward. Browsers send every `*.localhost` name to `127.0.0.1`, so no
    kubectl -n keycloak exec deploy/keycloak -- rm -f /tmp/kcadm.config
    ```
 
-   Set `ADMIN_HOSTNAME` to your `adminHostname`. After `temp-admin` is
-   replaced (step 5), log in with your own admin user instead. The change
-   makes all earlier `master` tokens invalid, so log in again afterwards. To
-   undo it, run the same commands with `attributes.frontendUrl=`. kcadm runs
-   inside the pod, so a wrong value cannot lock you out.
+   Set `ADMIN_HOSTNAME` to your `adminHostname`. The change makes all
+   earlier `master` tokens invalid, so log in again afterwards. To undo it,
+   run the same commands with `attributes.frontendUrl=`. kcadm runs inside
+   the pod, so a wrong value cannot lock you out.
+
+   After `temp-admin` is replaced (step 5), log in with your own `master`
+   admin user instead; kcadm then asks for the password:
+
+   ```bash
+   read -rp 'Master admin username: ' KC_ADMIN_USER
+   kubectl -n keycloak exec -it deploy/keycloak -- /opt/keycloak/bin/kcadm.sh config credentials \
+     --config /tmp/kcadm.config --server http://localhost:8080 --realm master --user "$KC_ADMIN_USER"
+   ```
+
+   A service-account client with only the `create-realm` role (for example
+   one for Terraform) cannot change `master` and gets `HTTP 403 Forbidden`.
 
 2. Forward the port:
 
